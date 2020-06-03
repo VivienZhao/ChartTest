@@ -38,7 +38,7 @@ public class LineChart : ChartBase
 
             if (_points.points[indexX].y == tempV3[i].y)//底部点
             {
-                if (tempV3[i].z == 0)//区分前后面的点
+                if (tempV3[i].z == _points.points[0].z)//区分前后面的点
                 {
                     if (!fowardLine.Contains(tempV3[i]))
                         fowardLine.Add(tempV3[i]);
