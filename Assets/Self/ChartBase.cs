@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class ChartBase : MonoBehaviour
@@ -65,10 +66,14 @@ public class ChartBase : MonoBehaviour
 
     protected string meshName;
 
+    /// <summary>
+    /// 辅助线的粗细
+    /// </summary>
+    public Vector3 lineThickness = new Vector3(0.1f, 0.1f, 0.1f);
+
     public virtual void Awake()
     {
         SetMeshName();
-
     }
     public virtual void SetMeshName()
     {
@@ -76,11 +81,19 @@ public class ChartBase : MonoBehaviour
     }
     private void OnEnable()
     {
+        CreateUnitObjs();
         CreateMesh();
         SetMeshInfo();
         ApplyValue();
         ShowAnim();
     }
+
+    private void OnDisable()
+    {
+        DestroyImmediate(lineObj);
+        DeleteAllItemObjs();
+    }
+
 
     /// <summary>
     /// 展示动画
@@ -103,7 +116,7 @@ public class ChartBase : MonoBehaviour
     }
 
 
-    protected  System.Collections.IEnumerator DoFloatValue(float startValue, float endValue, float time, System.Action<float> ChangeAction)
+    protected System.Collections.IEnumerator DoFloatValue(float startValue, float endValue, float time, System.Action<float> ChangeAction)
     {
         float tempF = startValue;
         float offsetValue = (endValue - startValue) / (time / 0.02f);
@@ -124,10 +137,159 @@ public class ChartBase : MonoBehaviour
 
     public virtual void Update()
     {
+        RefreshLineMesh();
         CreateMesh();
         SetMeshInfo();
         ApplyValue();
     }
+    #region 辅助线部分
+
+    /// <summary>
+    /// 辅助线物体
+    /// </summary>
+    GameObject lineObj;
+    /// <summary>
+    /// 辅助线的mesh
+    /// </summary>
+    Mesh lineMesh;
+
+    /// <summary>
+    /// 创建计量单位物体
+    /// </summary>
+    public virtual void CreateUnitObjs()
+    {
+        lineObj = new GameObject(gameObject.name + "Line");
+        lineObj.transform.position = Vector3.zero;
+        lineMesh = new Mesh();
+        lineObj.AddComponent<MeshFilter>().mesh = lineMesh;
+        lineObj.AddComponent<MeshRenderer>();
+        lineObj.GetComponent<MeshRenderer>().material = mat;
+    }
+    /// <summary>
+    /// 刷新辅助线的mesh
+    /// </summary>
+    void RefreshLineMesh()
+    {
+        if (lineMesh != null)
+        {
+            lineMesh.Clear();
+            SetXyzValueRange();
+            lineMesh.vertices = GetLinePoints();
+            lineMesh.triangles = GetTrianglesVector3s(lineMesh.vertices);
+            lineMesh.RecalculateNormals();//重置法线
+            lineMesh.RecalculateBounds();   //重置范围
+        }
+    }
+
+    protected float minX, maxX, minY, maxY, minZ, maxZ;
+
+    protected int xCount, yCount, zCount;
+
+    /// <summary>
+    /// 设置xyz数值的范围
+    /// </summary>
+    protected virtual void SetXyzValueRange()
+    {
+        List<Vector3> tempSortV3 = pointsInfos[0].points.ToList();
+        tempSortV3.Sort((x, y) => { if (x.y > y.y) return 1; else if (x == y) return 0; else return -1; });
+
+
+        minX = 0;
+        maxX = pointsInfos[pointsInfos.Count - 1].points[0].x;
+
+        maxY = tempSortV3[tempSortV3.Count - 1].y;
+        minY = 0;
+
+        minZ = 0;
+        maxZ = pointsInfos[0].points[0].z;
+
+        xCount = Mathf.Abs((int)(maxX - minX));
+        yCount = Mathf.Abs((int)(maxY - minY));
+        zCount = Mathf.Abs((int)(maxZ - minZ));
+
+    }
+
+    protected virtual Vector3[] GetLinePoints()
+    {
+
+        List<Vector3> tempLinePoints = new List<Vector3>();
+        for (int i = 0; i < xCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, i, i + lineThickness.x, minY, minY + lineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
+        }
+        for (int i = 0; i < xCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, i, i + lineThickness.x, minY, maxY, minZ, minZ + lineThickness.z);
+        }
+
+        for (int i = 0; i < yCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, minX, minX + lineThickness.x, i, i + lineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
+        }
+        for (int i = 0; i < yCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, minX, maxX, i, i + lineThickness.y, minZ, minZ + lineThickness.z);
+        }
+
+        for (int i = 0; i < zCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, minX, maxX, minY, minY + lineThickness.y, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + lineThickness.z);
+        }
+
+        for (int i = 0; i < zCount + 1; i++)
+        {
+            AddLinePoint(tempLinePoints, minX, minX + lineThickness.x, minY, maxY, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + lineThickness.z);
+        }
+
+
+        return tempLinePoints.ToArray();
+    }
+
+
+    /// <summary>
+    /// 通过3个轴的最大值于最小值确定立方体
+    /// </summary>
+    /// <param name="tempLinePoints"></param>
+    /// <param name="tempMinX"></param>
+    /// <param name="tempMaxX"></param>
+    /// <param name="tempMinY"></param>
+    /// <param name="tempMaxY"></param>
+    /// <param name="tempMinZ"></param>
+    /// <param name="tempMaxZ"></param>
+    protected void AddLinePoint(List<Vector3> tempLinePoints, float tempMinX, float tempMaxX, float tempMinY, float tempMaxY, float tempMinZ, float tempMaxZ)
+    {
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMinZ));
+
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMinZ));
+
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMinZ));
+
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMaxZ));
+
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMinX, tempMinY, tempMinZ));
+
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMinZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMaxY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMaxZ));
+        tempLinePoints.Add(new Vector3(tempMaxX, tempMinY, tempMinZ));
+    }
+    #endregion
+
 
     /// <summary>
     /// 创建mesh
@@ -145,7 +307,7 @@ public class ChartBase : MonoBehaviour
             {
                 GameObject itemObj = new GameObject();
                 itemObj.transform.parent = objParent.transform;
-                itemObj.name = meshName+"_Child_"+i.ToString();
+                itemObj.name = meshName + "_Child_" + i.ToString();
                 Mesh mesh = new Mesh();
                 meshs.Add(mesh);
                 itemObj.AddComponent<MeshFilter>().mesh = mesh;
@@ -249,6 +411,7 @@ public class ChartBase : MonoBehaviour
             {
                 tempV3[i] += new Vector3(0, _points.points[indexX].y, 0);
             }
+
             tempV3[i] += new Vector3(_points.points[indexX].x, 0, _points.points[indexX].z);
 
         }
@@ -302,6 +465,7 @@ public class ChartBase : MonoBehaviour
             forwardPoints.Add(leftPoints[3] + new Vector3(_points.size.x * (i + 1), 0, 0));
             forwardPoints.Add(leftPoints[0] + new Vector3(_points.size.x * (i + 1), 0, 0));//底面点
         }
+
 
         for (int i = 0; i < midCount; i++)
         {

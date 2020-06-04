@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
@@ -7,7 +8,26 @@ using UnityEngine;
 /// </summary>
 public class SectorChart : ChartBase
 {
-    List<float> tempPointY = new List<float>();
+
+
+    protected override void SetXyzValueRange()
+    {
+        minX = 0;
+        maxX = pointsInfos[0].size.x * 2;
+
+        maxY = pointsInfos[0].size.y;
+        minY = 0;
+
+        minZ = 0;
+        maxZ = pointsInfos[0].size.z * 2;
+
+        xCount = Mathf.Abs((int)(maxX - minX));
+        yCount = Mathf.Abs((int)(maxY - minY));
+        zCount = Mathf.Abs((int)(maxZ - minZ));
+
+    }
+
+
     /// <summary>
     /// 展示动画
     /// </summary>

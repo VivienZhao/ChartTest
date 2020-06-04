@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 
@@ -19,6 +20,27 @@ public class LineChart : ChartBase
     public bool bottomExtension = false;
 
 
+    protected override void SetXyzValueRange()
+    {
+        List<Vector3> tempSortV3 = pointsInfos[0].points.ToList();
+        tempSortV3.Sort((x, y) => { if (x.y > y.y) return 1; else if (x == y) return 0; else return -1; });
+
+        minX = 0;
+        maxX = pointsInfos[0].points[pointsInfos[0].points.Length - 1].x;
+
+        maxY = tempSortV3[tempSortV3.Count - 1].y;
+        minY = 0;
+
+        minZ = 0;
+        maxZ = pointsInfos[0].points[pointsInfos[0].points.Length - 1].z;
+
+        xCount = Mathf.Abs((int)(maxX - minX));
+        yCount = Mathf.Abs((int)(maxY - minY));
+        zCount = Mathf.Abs((int)(maxZ - minZ));
+
+    }
+
+
     public override Vector3[] SetVerticesOffset(Vector3[] vertices, PointsInfo _points)
     {
         shouldMovePoss.Clear();
@@ -34,7 +56,8 @@ public class LineChart : ChartBase
 
             int indexX = int.Parse((vertices[i].x / _points.size.x).ToString());
 
-            tempV3[i] += _points.points[indexX];
+            tempV3[i] = new Vector3(tempV3[i].x - indexX, tempV3[i].y, tempV3[i].z) + _points.points[indexX];
+            // tempV3[i] += _points.points[indexX];
 
             if (_points.points[indexX].y == tempV3[i].y)//底部点
             {

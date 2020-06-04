@@ -137,7 +137,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &87894635
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -177,6 +177,7 @@ MonoBehaviour:
     sertorCount: 0
     itemSectorPercent: []
   center: {x: 0, y: 0, z: 0}
+  lineThickness: {x: 0.1, y: 0.1, z: 0.1}
 --- !u!4 &87894636
 Transform:
   m_ObjectHideFlags: 0
@@ -207,7 +208,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &214283699
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -233,6 +234,7 @@ MonoBehaviour:
     sertorCount: 0
     itemSectorPercent: []
   center: {x: 0, y: 0, z: 0}
+  lineThickness: {x: 0.1, y: 0.1, z: 0.1}
   bottomExtension: 0
 --- !u!4 &214283700
 Transform:
@@ -280,7 +282,7 @@ MonoBehaviour:
   mat: {fileID: 2100000, guid: cb668d6ca0460ca48b80e9bf2a03bf60, type: 2}
   pointsInfos:
   - points:
-    - {x: 0, y: 0, z: 0}
+    - {x: 1, y: 1, z: 1}
     size: {x: 1, y: 1, z: 1}
     inCirclePercent: 0.5
     insertValue: 0.1
@@ -293,6 +295,7 @@ MonoBehaviour:
     - 0.1
     - 0.1
   center: {x: 0, y: 0, z: 0}
+  lineThickness: {x: 0.1, y: 0.1, z: 0.1}
 --- !u!4 &486540095
 Transform:
   m_ObjectHideFlags: 0
