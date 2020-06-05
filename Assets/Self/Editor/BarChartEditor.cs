@@ -27,7 +27,7 @@ public class BarChartEditor : ChartBaseEditor
 
     protected override void AddBigInfoAction()
     {
-        chartBase.pointsInfos.Add(new PointsInfo(new Vector3[2], Vector3.one));
+        chartBase.pointsInfos.Add(new PointsInfo(new Vector3[1], Vector3.one));
     }
 
     protected override void ReduceBigInfoAction()
@@ -47,11 +47,7 @@ public class BarChartEditor : ChartBaseEditor
     {
         for (int j = 0; j < chartBase.pointsInfos[index].points.Length; j++)
         {
-            if (j % 2 == 0)
-            {
-
-                chartBase.pointsInfos[index].points[j] = chartBase.pointsInfos[index].points[j + 1] = EditorGUILayout.Vector3Field(string.Format(smallBtnInfo, j / 2), chartBase.pointsInfos[index].points[j]);
-            }
+            chartBase.pointsInfos[index].points[j] = EditorGUILayout.Vector3Field(string.Format(smallBtnInfo, j), chartBase.pointsInfos[index].points[j]);
         }
         EditorGUILayout.BeginHorizontal(GUI.skin.box);
         chartBase.pointsInfos[index].size = EditorGUILayout.Vector3Field("图表尺寸", chartBase.pointsInfos[index].size);

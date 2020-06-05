@@ -9,7 +9,12 @@ public class BarChart : ChartBase
 
     protected override void SetXyzValueRange()
     {
-        List<Vector3> tempSortV3 = pointsInfos[0].points.ToList();
+        List<Vector3> tempSortV3 = new List<Vector3>();
+        for (int i = 0; i < pointsInfos.Count; i++)
+        {
+            tempSortV3.Add(pointsInfos[i].points[0]);
+        }
+
         tempSortV3.Sort((x, y) => { if (x.y > y.y) return 1; else if (x == y) return 0; else return -1; });
 
         minX = 0;
@@ -27,35 +32,44 @@ public class BarChart : ChartBase
 
     }
 
+    /// <summary>
+    /// 刷新辅助点位置
+    /// </summary>
+    protected override void ResetSetGuidePoints()
+    {
+        Vector3[] tempPos = new Vector3[pointsInfos.Count];
+        for (int i = 0; i < tempPos.Length; i++)
+        {
+            tempPos[i] = pointsInfos[i].points[0];
+        }
+        ResetSetGuidePointsTrans(tempPos);
+    }
 
 
     /// <summary>
-    /// 根据顶点和位移差获取最终位置
+    /// 是否重新生成辅助点的条件
     /// </summary>
-    /// <param name="vertices"></param>
-    /// <param name="index"></param>
+    /// <param name="count"></param>
     /// <returns></returns>
-    public override Vector3[] SetVerticesOffset(Vector3[] vertices, PointsInfo _points)
+    protected override bool IsCanInstanceGuidePointObj(out int count)
+    {
+        count = pointsInfos.Count;
+        return guidePointObjs.Count != count;
+    }
+
+
+
+    protected override Vector3[] GetPointsVector3s(PointsInfo _points)
     {
 
-        Vector3[] tempV3 = new Vector3[vertices.Length];
+        List<Vector3> tempPoints = new List<Vector3>();
 
-        for (int i = 0; i < vertices.Length; i++)
+        for (int i = 0; i < _points.points.Length; i++)
         {
-            tempV3[i] = new Vector3(vertices[i].x, 0, vertices[i].z);
-
-            int indexX = (int)(vertices[i].x / _points.size.x);
-
-
-            if (_points.size.y == vertices[i].y)
-            {
-                tempV3[i] += new Vector3(0, _points.points[indexX].y, 0);
-            }
-            tempV3[i] += new Vector3(_points.points[indexX].x, 0, _points.points[indexX].z);
-
+            tempPoints.AddRange(GetCubePointFromPoint(new Vector3(_points.points[i].x, _points.points[i].y / 2f, _points.points[i].z), new Vector3(_points.size.x, _points.points[i].y, _points.size.z)));
         }
 
-        return tempV3;
+        return tempPoints.ToArray();
     }
 
 }

@@ -6,30 +6,6 @@ public class ChartBase : MonoBehaviour
 {
 
     public Material mat;//mesh材质
-    /// <summary>
-    /// 所有的左面坐标
-    /// </summary>
-    protected List<Vector3> leftPoints = new List<Vector3>();
-    /// <summary>
-    /// 所有的前面坐标
-    /// </summary>
-    protected List<Vector3> forwardPoints = new List<Vector3>();
-    /// <summary>
-    /// 所有的底面坐标
-    /// </summary>
-    protected List<Vector3> bottomPoints = new List<Vector3>();
-    /// <summary>
-    /// 所有的后面坐标
-    /// </summary>
-    protected List<Vector3> backPoints = new List<Vector3>();
-    /// <summary>
-    /// 所有的上面坐标
-    /// </summary>
-    protected List<Vector3> upPoints = new List<Vector3>();
-    /// <summary>
-    /// 所有的右面坐标
-    /// </summary>
-    protected List<Vector3> rightPoints = new List<Vector3>();
 
     /// <summary>
     /// 所有的顶点添加偏移
@@ -67,9 +43,21 @@ public class ChartBase : MonoBehaviour
     protected string meshName;
 
     /// <summary>
-    /// 辅助线的粗细
+    /// 单位网格线的粗细
     /// </summary>
-    public Vector3 lineThickness = new Vector3(0.1f, 0.1f, 0.1f);
+    public Vector3 unitLineThickness = new Vector3(0.1f, 0.1f, 0.1f);
+
+    /// <summary>
+    /// 辅助线线的粗细
+    /// </summary>
+    public Vector3 guideLineThickness = new Vector3(0.1f, 0.1f, 0.1f);
+
+    /// <summary>
+    /// 辅助点的大小
+    /// </summary>
+    public float guidePointsSize = 1;
+
+
 
     public virtual void Awake()
     {
@@ -81,11 +69,13 @@ public class ChartBase : MonoBehaviour
     }
     private void OnEnable()
     {
+        CreatGuidePointObj();
         CreateUnitObjs();
         CreateMesh();
         SetMeshInfo();
         ApplyValue();
         ShowAnim();
+        CreatGuideLines();
     }
 
     private void OnDisable()
@@ -141,15 +131,137 @@ public class ChartBase : MonoBehaviour
         CreateMesh();
         SetMeshInfo();
         ApplyValue();
+        ResetSetGuidePoints();
+        RefreshGuideLineMehs();
     }
-    #region 辅助线部分
+
+    #region 生成辅助点点
+    GameObject guidePointParentObj;
+    protected List<GameObject> guidePointObjs = new List<GameObject>();
+    protected virtual void CreatGuidePointObj()
+    {
+        int guideCount = 0;
+        if (IsCanInstanceGuidePointObj(out guideCount))
+        {
+            ClearGuidePoints();
+            guidePointParentObj = new GameObject(gameObject.name + "_GuidePoints");
+            for (int i = 0; i < guideCount; i++)
+            {
+                GameObject tempGuidePointObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                tempGuidePointObj.name = gameObject.name + "_GuidePoints_" + i.ToString();
+                tempGuidePointObj.transform.parent = guidePointParentObj.transform;
+                guidePointObjs.Add(tempGuidePointObj);
+            }
+        }
+    }
+
+    void ClearGuidePoints()
+    {
+        if (guidePointParentObj != null)
+        {
+            DestroyImmediate(guidePointParentObj);
+        }
+        for (int i = 0; i < guidePointObjs.Count; i++)
+        {
+            DestroyImmediate(guidePointObjs[i]);
+        }
+        guidePointObjs.Clear();
+    }
+    /// <summary>
+    /// 是否重新生成辅助点的条件
+    /// </summary>
+    /// <param name="count"></param>
+    /// <returns></returns>
+    protected virtual bool IsCanInstanceGuidePointObj(out int count)
+    {
+
+        count = pointsInfos.Count;
+        return guidePointObjs.Count != count;
+    }
 
     /// <summary>
-    /// 辅助线物体
+    /// 刷新辅助点位置
+    /// </summary>
+    protected virtual void ResetSetGuidePoints()
+    {
+        ResetSetGuidePointsTrans(pointsInfos[0].points);
+    }
+    /// <summary>
+    /// 设置辅助点的位置，缩放等信息
+    /// </summary>
+    protected void ResetSetGuidePointsTrans(Vector3[] poss)
+    {
+        for (int i = 0; i < guidePointObjs.Count; i++)
+        {
+            guidePointObjs[i].transform.position = poss[i];
+            guidePointObjs[i].transform.localScale = Vector3.one * guidePointsSize;
+        }
+
+    }
+
+
+
+    #endregion
+
+
+    #region 辅助线部分
+
+
+    Mesh guideLineObjMesh;
+
+
+    /// <summary>
+    /// 创建辅助线
+    /// </summary>
+    protected virtual void CreatGuideLines()
+    {
+        GameObject guideLineObj = new GameObject(gameObject.name + "_GuideLine");
+        guideLineObj.transform.position = Vector3.zero;
+        guideLineObjMesh = new Mesh();
+
+        guideLineObj.AddComponent<MeshFilter>().mesh = guideLineObjMesh;
+        guideLineObj.AddComponent<MeshRenderer>().material = mat;
+    }
+
+    protected virtual void RefreshGuideLineMehs()
+    {
+        guideLineObjMesh.Clear();
+        guideLineObjMesh.vertices = GetGuideLinePoints();
+        guideLineObjMesh.triangles = GetTrianglesVector3s(guideLineObjMesh.vertices);
+        guideLineObjMesh.RecalculateNormals();//重置法线
+        guideLineObjMesh.RecalculateBounds();   //重置范围
+    }
+
+    protected virtual Vector3[] GetGuideLinePoints()
+    {
+        List<Vector3> tempPoints = new List<Vector3>();
+        for (int i = 0; i < guidePointObjs.Count; i++)
+        {
+            Vector3 tempPos = guidePointObjs[i].transform.position;
+
+            tempPoints.AddRange(GetCubePointFromPoint(tempPos - new Vector3(0, 0, tempPos.z / 2f), new Vector3(0.1f, 0.1f, -tempPos.z)));
+
+            tempPoints.AddRange(GetCubePointFromPoint(tempPos - new Vector3(tempPos.x / 2f, 0, 0), new Vector3(-tempPos.x, 0.1f, 0.1f)));
+
+            tempPoints.AddRange(GetCubePointFromPoint(tempPos - new Vector3(0, tempPos.y / 2f, 0), new Vector3(0.1f, -tempPos.y, 0.1f)));
+        }
+
+        return tempPoints.ToArray();
+    }
+
+
+
+    #endregion
+
+
+    #region 单位网格线部分
+
+    /// <summary>
+    /// 单位网格线物体
     /// </summary>
     GameObject lineObj;
     /// <summary>
-    /// 辅助线的mesh
+    /// 单位网格线的mesh
     /// </summary>
     Mesh lineMesh;
 
@@ -166,7 +278,7 @@ public class ChartBase : MonoBehaviour
         lineObj.GetComponent<MeshRenderer>().material = mat;
     }
     /// <summary>
-    /// 刷新辅助线的mesh
+    /// 刷新单位网格线的mesh
     /// </summary>
     void RefreshLineMesh()
     {
@@ -215,30 +327,30 @@ public class ChartBase : MonoBehaviour
         List<Vector3> tempLinePoints = new List<Vector3>();
         for (int i = 0; i < xCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, i, i + lineThickness.x, minY, minY + lineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
+            AddLinePoint(tempLinePoints, i, i + unitLineThickness.x, minY, minY + unitLineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
         }
         for (int i = 0; i < xCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, i, i + lineThickness.x, minY, maxY, minZ, minZ + lineThickness.z);
+            AddLinePoint(tempLinePoints, i, i + unitLineThickness.x, minY, maxY, minZ, minZ + unitLineThickness.z);
         }
 
         for (int i = 0; i < yCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, minX, minX + lineThickness.x, i, i + lineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
+            AddLinePoint(tempLinePoints, minX, minX + unitLineThickness.x, i, i + unitLineThickness.y, maxZ > 0 ? minZ : maxZ, maxZ > 0 ? maxZ : minZ);
         }
         for (int i = 0; i < yCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, minX, maxX, i, i + lineThickness.y, minZ, minZ + lineThickness.z);
+            AddLinePoint(tempLinePoints, minX, maxX, i, i + unitLineThickness.y, minZ, minZ + unitLineThickness.z);
         }
 
         for (int i = 0; i < zCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, minX, maxX, minY, minY + lineThickness.y, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + lineThickness.z);
+            AddLinePoint(tempLinePoints, minX, maxX, minY, minY + unitLineThickness.y, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + unitLineThickness.z);
         }
 
         for (int i = 0; i < zCount + 1; i++)
         {
-            AddLinePoint(tempLinePoints, minX, minX + lineThickness.x, minY, maxY, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + lineThickness.z);
+            AddLinePoint(tempLinePoints, minX, minX + unitLineThickness.x, minY, maxY, maxZ > 0 ? i : i * -1, (maxZ > 0 ? i : i * -1) + unitLineThickness.z);
         }
 
 
@@ -397,26 +509,7 @@ public class ChartBase : MonoBehaviour
     /// <returns></returns>
     public virtual Vector3[] SetVerticesOffset(Vector3[] vertices, PointsInfo _points)
     {
-        Vector3[] tempV3 = new Vector3[vertices.Length];
-
-        for (int i = 0; i < vertices.Length; i++)
-        {
-            //Vector3 tempDir =Vector3.Normalize( vertices[i] - center);
-
-            tempV3[i] = new Vector3(vertices[i].x, 0, vertices[i].z);
-
-            int indexX = (int)vertices[i].x;
-
-            if (_points.size.y == vertices[i].y)
-            {
-                tempV3[i] += new Vector3(0, _points.points[indexX].y, 0);
-            }
-
-            tempV3[i] += new Vector3(_points.points[indexX].x, 0, _points.points[indexX].z);
-
-        }
-
-        return tempV3;
+        return vertices;
     }
 
 
@@ -435,7 +528,7 @@ public class ChartBase : MonoBehaviour
     }
 
     /// <summary>
-    /// 获取正方体的每个面顶点坐标   (先生成最左面的第一竖列顶点，然后依次推导出后面的点)
+    /// 获取正方体的每个面顶点坐标
     /// </summary>
     /// <param name="count"></param>
     /// <returns></returns>
@@ -444,68 +537,76 @@ public class ChartBase : MonoBehaviour
 
         List<Vector3> tempPoints = new List<Vector3>();
 
-        leftPoints.Clear();
-        forwardPoints.Clear();
-        bottomPoints.Clear();
-        backPoints.Clear();
-        upPoints.Clear();
-        rightPoints.Clear();
-
-
-        leftPoints.Add(new Vector3(0, 0, 0));//底面点
-        leftPoints.Add(new Vector3(0, 0, _points.size.z));//底面点
-        leftPoints.Add(new Vector3(0, _points.size.y, _points.size.z));
-        leftPoints.Add(new Vector3(0, _points.size.y, 0));
-
-        int midCount = _points.points.Length - 1;
-        for (int i = 0; i < midCount; i++)
-        {
-            forwardPoints.Add(leftPoints[0] + new Vector3(_points.size.x * i, 0, 0));//底面点
-            forwardPoints.Add(leftPoints[3] + new Vector3(_points.size.x * i, 0, 0));
-            forwardPoints.Add(leftPoints[3] + new Vector3(_points.size.x * (i + 1), 0, 0));
-            forwardPoints.Add(leftPoints[0] + new Vector3(_points.size.x * (i + 1), 0, 0));//底面点
-        }
-
-
-        for (int i = 0; i < midCount; i++)
-        {
-            bottomPoints.Add(leftPoints[1] + new Vector3(_points.size.x * i, 0, 0));//底面点
-            bottomPoints.Add(leftPoints[0] + new Vector3(_points.size.x * i, 0, 0));//底面点
-            bottomPoints.Add(leftPoints[0] + new Vector3(_points.size.x * (i + 1), 0, 0));//底面点
-            bottomPoints.Add(leftPoints[1] + new Vector3(_points.size.x * (i + 1), 0, 0));//底面点
-        }
-
-        for (int i = 0; i < midCount; i++)
-        {
-            backPoints.Add(leftPoints[2] + new Vector3(_points.size.x * i, 0, 0));
-            backPoints.Add(leftPoints[1] + new Vector3(_points.size.x * i, 0, 0));//底面点
-            backPoints.Add(leftPoints[1] + new Vector3(_points.size.x * (i + 1), 0, 0));//底面点
-            backPoints.Add(leftPoints[2] + new Vector3(_points.size.x * (i + 1), 0, 0));
-        }
-
-        for (int i = 0; i < midCount; i++)
-        {
-            upPoints.Add(leftPoints[3] + new Vector3(_points.size.x * i, 0, 0));
-            upPoints.Add(leftPoints[2] + new Vector3(_points.size.x * i, 0, 0));
-            upPoints.Add(leftPoints[2] + new Vector3(_points.size.x * (i + 1), 0, 0));
-            upPoints.Add(leftPoints[3] + new Vector3(_points.size.x * (i + 1), 0, 0));
-        }
-
-        rightPoints.Add(leftPoints[3] + new Vector3(_points.size.x * midCount, 0, 0));
-        rightPoints.Add(leftPoints[2] + new Vector3(_points.size.x * midCount, 0, 0));
-        rightPoints.Add(leftPoints[1] + new Vector3(_points.size.x * midCount, 0, 0));//底面点
-        rightPoints.Add(leftPoints[0] + new Vector3(_points.size.x * midCount, 0, 0));//底面点
-
-
-        tempPoints.AddRange(leftPoints);
-        tempPoints.AddRange(forwardPoints);
-        tempPoints.AddRange(bottomPoints);
-        tempPoints.AddRange(backPoints);
-        tempPoints.AddRange(upPoints);
-        tempPoints.AddRange(rightPoints);
 
         return tempPoints.ToArray();
     }
+
+    /// <summary>
+    /// 根据中心点与尺寸范围生成cube
+    /// </summary>
+    /// <param name="centerPoint"></param>
+    /// <param name="size"></param>
+    /// <returns></returns>
+    protected List<Vector3> GetCubePointFromPoint(Vector3 centerPoint, Vector3 size, bool haveLeft = true, bool haveRight = true, bool haveFoward = true, bool haveBack = true, bool haveUp = true, bool haveDown = true)
+    {
+        List<Vector3> tempPoints = new List<Vector3>();
+        if (haveDown)
+        {
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, size.z / 2f));
+        }
+
+        if (haveBack)
+        {
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, -size.z / 2f));
+        }
+
+        if (haveLeft)
+        {
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, -size.z / 2f));
+        }
+
+        if (haveFoward)
+        {
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, -size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, size.z / 2f));
+        }
+
+        if (haveRight)
+        {
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, -size.y / 2f, size.z / 2f));
+        }
+
+        if (haveUp)
+        {
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, -size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(-size.x / 2f, size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, size.z / 2f));
+            tempPoints.Add(centerPoint + new Vector3(size.x / 2f, size.y / 2f, -size.z / 2f));
+        }
+
+
+        if (size.x < 0 || size.y < 0 || size.z < 0)
+        {
+            tempPoints.Reverse();
+        }
+
+        return tempPoints;
+    }
+
 
     /// <summary>
     /// 设置三角面索引
